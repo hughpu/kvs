@@ -1,4 +1,4 @@
-use clap::{Parser};
+use clap::Parser;
 use kvs::{KvStore, KvsError, Result, Command};
 use std::env::current_dir;
 use std::process::exit;

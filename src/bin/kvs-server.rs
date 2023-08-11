@@ -1,7 +1,6 @@
 use clap::{Parser, ValueEnum};
-use kvs::{KvStore, KvsError, Result, Command};
+use kvs::{KvStore, Result, KvsEngine, SledKvsEngine};
 use std::env::current_dir;
-use std::process::exit;
 
 
 #[derive(ValueEnum, Clone)]
@@ -21,7 +20,7 @@ enum Engine {
 #[command(about=env!("CARGO_PKG_DESCRIPTION"))]
 struct Cli {
     /// the ip:port address to bind to
-    #[arg(long, default_value_t = String::from("127.0.0.1:12368"))]
+    #[arg(long, default_value_t = String::from("127.0.0.1:4000"))]
     addr: String,
     
     /// the key value engine to use, supported `kvs`, `sled`
@@ -34,10 +33,10 @@ struct Cli {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let engine: KvsEngine = match cli.engine {
-        Engine::Kvs => KvStore::open(current_dir()?),
-        Engine::Sled => SledStore::open(current_dir()?)
-    }?;
+    let engine: Box<dyn KvsEngine> = match cli.engine {
+        Engine::Kvs => Box::new(KvStore::open(current_dir()?)?),
+        Engine::Sled => Box::new(SledKvsEngine::open(current_dir()?)?)
+    };
     
     let addr: String = cli.addr.clone();
 

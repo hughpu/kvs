@@ -1,5 +1,5 @@
 use clap::Parser;
-use kvs::{KvStore, KvsError, Result, Command};
+use kvs::{KvStore, KvsEngine, KvsError, Result, Command};
 use std::env::current_dir;
 use std::process::exit;
 
@@ -18,11 +18,11 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Command::Set { key, value } => {
+        Command::Set { key, value, addr } => {
             let mut store = KvStore::open(current_dir()?)?;
             store.set(key.to_string(), value.to_string())?;
         }
-        Command::Get { key } => {
+        Command::Get { key, addr } => {
             let mut store = KvStore::open(current_dir()?)?;
             if let Some(value) = store.get(key.to_string())? {
                 println!("{}", value);
@@ -30,7 +30,7 @@ fn main() -> Result<()> {
                 println!("Key not found");
             }
         }
-        Command::Rm { key } => {
+        Command::Rm { key, addr } => {
             let mut store = KvStore::open(current_dir()?)?;
             match store.remove(key.to_string()) {
                 Ok(()) => {}

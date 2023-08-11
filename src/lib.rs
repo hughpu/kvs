@@ -2,8 +2,7 @@
 //! A simple key/value store.
 
 pub use error::{KvsError, Result};
-pub use kv::KvStore;
-pub use kv::Command;
+pub use engines::{KvsEngine, KvStore, SledKvsEngine, Command};
 
 mod error;
-mod kv;
+mod engines;

@@ -1,7 +1,10 @@
 use clap::Parser;
 use kvs::{KvStore, KvsEngine, KvsError, Result, Command};
-use std::env::current_dir;
+use std::io::{Write, Read};
+use std::net;
+use std::{env::current_dir, net::TcpStream};
 use std::process::exit;
+use {slog, slog::{Drain, o, info}, slog_term};
 
 
 #[derive(Parser)]
@@ -15,32 +18,42 @@ struct Cli {
 }
 
 fn main() -> Result<()> {
+    let decorator = slog_term::PlainSyncDecorator::new(std::io::stderr());
+    let drain = slog_term::FullFormat::new(decorator).build().fuse();
+    let root = slog::Logger::root(drain, o!("version" => env!("CARGO_PKG_VERSION")));
+    info!(root, "starting kvs client...");
+
     let cli = Cli::parse();
 
-    match &cli.command {
+    let (msg, addr) = match &cli.command {
         Command::Set { key, value, addr } => {
-            let mut store = KvStore::open(current_dir()?)?;
-            store.set(key.to_string(), value.to_string())?;
+            let msg = format!("command set {key} as {value}");
+            (msg, addr)
         }
         Command::Get { key, addr } => {
-            let mut store = KvStore::open(current_dir()?)?;
-            if let Some(value) = store.get(key.to_string())? {
-                println!("{}", value);
-            } else {
-                println!("Key not found");
-            }
+            let msg = format!("command get {key}");
+            (msg, addr)
         }
         Command::Rm { key, addr } => {
-            let mut store = KvStore::open(current_dir()?)?;
-            match store.remove(key.to_string()) {
-                Ok(()) => {}
-                Err(KvsError::KeyNotFound) => {
-                    println!("Key not found");
-                    exit(1);
-                }
-                Err(e) => return Err(e),
-            }
+            let msg = format!("command remove {key}");
+            (msg, addr)
         }
-    }
+    };
+
+    info!(root, "connecting {addr}", addr=addr);
+    let mut connection = TcpStream::connect(addr)?;
+    let local_addr = connection.local_addr()?;
+    let remote_addr = connection.peer_addr()?;
+    let connect_log = root.new(o!("remote" => remote_addr, "local" => local_addr));
+    info!(connect_log, "connection establised.");
+    info!(connect_log, "sending {message}", message=&msg);
+    connection.write_all(msg.as_bytes())?;
+    connection.shutdown(net::Shutdown::Write)?;
+    
+    let mut respond = String::from("");
+    connection.read_to_string(&mut respond)?;
+    info!(connect_log, "receive {respond} from connection.", respond=&respond);
+    
+    info!(connect_log, "existing connection...");
     Ok(())
 }

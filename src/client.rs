@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::net::TcpStream;
+use std::net::{TcpStream,ToSocketAddrs};
 use serde::Deserialize;
 use serde_json::{Deserializer, de::IoRead};
 use crate::protocols::*;
@@ -14,7 +14,7 @@ pub struct KvsClient {
 }
 
 impl KvsClient {
-    fn connect(addr: String) -> Result<Self> {
+    fn connect<A: ToSocketAddrs>(addr: A) -> Result<Self> {
         let write_connection = TcpStream::connect(addr)?;
         let read_connection = write_connection.try_clone()?;
         let writer = BufWriter::new( write_connection);

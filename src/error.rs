@@ -5,6 +5,9 @@ use sled;
 /// Error type for kvs.
 #[derive(Fail, Debug)]
 pub enum KvsError {
+    /// String error.
+    #[fail(display = "{}", _0)]
+    StringError(String),
     /// IO error.
     #[fail(display = "{}", _0)]
     Io(#[cause] io::Error),

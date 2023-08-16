@@ -6,3 +6,6 @@ pub use engines::{KvsEngine, KvStore, SledKvsEngine, Command};
 
 mod error;
 mod engines;
+mod protocols;
+mod client;
+mod server;

@@ -22,7 +22,7 @@ impl<E: KvsEngine> KvsServer<E> {
     }
     
     /// listen to specified address for requests from kvs-client
-    pub fn run<A: ToSocketAddrs>(&mut self, addr: A) -> Result<()> {
+    pub fn run<A: ToSocketAddrs>(&mut self, addr: &A) -> Result<()> {
         let listener = TcpListener::bind(addr)?;
         for possible_stream in listener.incoming() {
             if let Err(kvs_error) = self.serve(possible_stream?) {

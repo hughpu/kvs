@@ -8,13 +8,15 @@ use crate::KvsError;
 use std::io::BufWriter;
 
 
+/// kvs client to connect to kvs server and request commands as get, set, rm, etc.
 pub struct KvsClient {
     writer: BufWriter<TcpStream>,
     reader: Deserializer<IoRead<TcpStream>>
 }
 
 impl KvsClient {
-    fn connect<A: ToSocketAddrs>(addr: A) -> Result<Self> {
+    /// connect to specific kvs-server address
+    pub fn connect<A: ToSocketAddrs>(addr: A) -> Result<Self> {
         let write_connection = TcpStream::connect(addr)?;
         let read_connection = write_connection.try_clone()?;
         let writer = BufWriter::new( write_connection);
@@ -24,7 +26,8 @@ impl KvsClient {
         )
     }
     
-    fn set(&mut self, key: String, value: String) -> Result<()> {
+    /// set key-value pair to kvs-store via kvs-server
+    pub fn set(&mut self, key: String, value: String) -> Result<()> {
         let request = Request::Set { key, value };
         serde_json::to_writer(&mut self.writer, &request)?;
         self.writer.flush()?;
@@ -36,7 +39,8 @@ impl KvsClient {
         }
     }
 
-    fn get(&mut self, key: String) -> Result<Option<String>> {
+    /// get value of key from kvs-store via kvs-server
+    pub fn get(&mut self, key: String) -> Result<Option<String>> {
         let request = Request::Get { key };
         serde_json::to_writer(&mut self.writer, &request)?;
         self.writer.flush()?;
@@ -48,7 +52,8 @@ impl KvsClient {
         }
     }
 
-    fn remove(&mut self, key: String) -> Result<()> {
+    /// remove key in kvs-store via kvs-server
+    pub fn remove(&mut self, key: String) -> Result<()> {
         let request = Request::Remove { key };
         serde_json::to_writer(&mut self.writer, &request)?;
         self.writer.flush()?;

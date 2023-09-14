@@ -6,21 +6,23 @@ use slog::{Drain, o, info, error, Logger};
 use crate::{KvsEngine, Result, protocols::{Request, GetResponse, SetResponse, RemoveResponse}, KvsError};
 
 
-
+/// kvs server to receive requests from kvs-client
 pub struct KvsServer<E: KvsEngine> {
     engine: E,
     log: Logger
 }
 
 impl<E: KvsEngine> KvsServer<E> {
-    fn new(engine: E) -> Self {
+    /// create a kvs server as proxy for specified kvs-store engine
+    pub fn new(engine: E) -> Self {
         let decorator = slog_term::PlainSyncDecorator::new(std::io::stderr());
         let drain = slog_term::FullFormat::new(decorator).build().fuse();
         let log = slog::Logger::root(drain, o!("version" => env!("CARGO_PKG_VERSION")));
         KvsServer { engine, log }
     }
     
-    fn run<A: ToSocketAddrs>(&mut self, addr: A) -> Result<()> {
+    /// listen to specified address for requests from kvs-client
+    pub fn run<A: ToSocketAddrs>(&mut self, addr: A) -> Result<()> {
         let listener = TcpListener::bind(addr)?;
         for possible_stream in listener.incoming() {
             if let Err(kvs_error) = self.serve(possible_stream?) {

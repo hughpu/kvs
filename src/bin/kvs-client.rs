@@ -1,5 +1,5 @@
 use clap::Parser;
-use kvs::{KvStore, KvsEngine, KvsError, Result, Command};
+use kvs::{KvStore, KvsEngine, KvsError, client::KvsClient, Result, Command};
 use std::io::{Write, Read};
 use std::net;
 use std::{env::current_dir, net::TcpStream};
@@ -25,35 +25,23 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
-    let (msg, addr) = match &cli.command {
+    match &cli.command {
         Command::Set { key, value, addr } => {
-            let msg = format!("command set {key} as {value}");
-            (msg, addr)
+            let mut kvs_cli = KvsClient::connect(addr)?;
+            kvs_cli.set(key.clone(), value.clone())?;
+            info!(root, "successfully set {key} with {value} in kvs-store proxied via server at {addr}", key=key, value=value, addr=addr);
         }
         Command::Get { key, addr } => {
-            let msg = format!("command get {key}");
-            (msg, addr)
+            let mut kvs_cli = KvsClient::connect(addr)?;
+            let value = kvs_cli.get(key.clone())?.ok_or(KvsError::StringError(String::from("got empty value.")))?;
+            info!(root, "successfully get {value} from {key} in kvs-store proxied via server at {addr}", key=key, value=&value, addr=addr);
         }
         Command::Rm { key, addr } => {
-            let msg = format!("command remove {key}");
-            (msg, addr)
+            let mut kvs_cli = KvsClient::connect(addr)?;
+            kvs_cli.remove(key.clone())?;
+            info!(root, "successfully remove {key} in kvs-store proxied via server at {addr}", key=key, addr=addr);
         }
     };
 
-    info!(root, "connecting {addr}", addr=addr);
-    let mut connection = TcpStream::connect(addr)?;
-    let local_addr = connection.local_addr()?;
-    let remote_addr = connection.peer_addr()?;
-    let connect_log = root.new(o!("remote" => remote_addr, "local" => local_addr));
-    info!(connect_log, "connection establised.");
-    info!(connect_log, "sending {message}", message=&msg);
-    connection.write_all(msg.as_bytes())?;
-    connection.shutdown(net::Shutdown::Write)?;
-    
-    let mut respond = String::from("");
-    connection.read_to_string(&mut respond)?;
-    info!(connect_log, "receive {respond} from connection.", respond=&respond);
-    
-    info!(connect_log, "existing connection...");
     Ok(())
 }

@@ -34,9 +34,11 @@ impl<E: KvsEngine> KvsServer<E> {
     
     fn serve(&mut self, read_stream: TcpStream) -> Result<()> {
         let write_stream = read_stream.try_clone()?;
-        let reader = Deserializer::from_reader(read_stream);
+        let reader = Deserializer::from_reader(&read_stream);
         let mut writer = BufWriter::new(write_stream);
         let stream_reader = reader.into_iter::<Request>();
+        let remote_addr = read_stream.peer_addr()?;
+        info!(self.log, "serving connection from {addr}", addr=remote_addr);
         
         macro_rules! send_resp {
             ($resp:expr) => {{
@@ -48,18 +50,27 @@ impl<E: KvsEngine> KvsServer<E> {
         
         for request in stream_reader {
             match request? {
-                Request::Get { key } => send_resp!(match self.engine.get(key) {
-                    Result::Ok(result) => GetResponse::Ok(result),
-                    Result::Err(kvs_error) => GetResponse::Err(format!("{}", kvs_error)),
-                }),
-                Request::Set { key, value } => send_resp!(match self.engine.set(key, value) {
-                    Result::Ok(_) => SetResponse::Ok(()),
-                    Result::Err(kvs_error) => SetResponse::Err(format!("{}", kvs_error)),
-                }),
-                Request::Remove { key } => send_resp!(match self.engine.remove(key) {
-                    Result::Ok(_) => RemoveResponse::Ok(()),
-                    Result::Err(kvs_error) => RemoveResponse::Err(format!("{}", kvs_error)),
-                }),
+                Request::Get { key } => {
+                    info!(self.log, "handling request try to {method} {key}", method="get", key=&key);
+                    send_resp!(match self.engine.get(key) {
+                        Result::Ok(result) => GetResponse::Ok(result),
+                        Result::Err(kvs_error) => GetResponse::Err(format!("{}", kvs_error)),
+                    })
+                },
+                Request::Set { key, value } => {
+                    info!(self.log, "handling request try to {method} {key} as {value}", method="set", key=&key, value=&value);
+                    send_resp!(match self.engine.set(key, value) {
+                        Result::Ok(_) => SetResponse::Ok(()),
+                        Result::Err(kvs_error) => SetResponse::Err(format!("{}", kvs_error)),
+                    })
+                },
+                Request::Remove { key } => {
+                    info!(self.log, "handling request try to {method} {key}", method="remove", key=&key);
+                    send_resp!(match self.engine.remove(key) {
+                        Result::Ok(_) => RemoveResponse::Ok(()),
+                        Result::Err(kvs_error) => RemoveResponse::Err(format!("{}", kvs_error)),
+                    })
+                },
             }
         }
         Ok(())

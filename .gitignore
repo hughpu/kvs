@@ -13,3 +13,6 @@ target/
 *.pdb
 
 *.log
+conf
+db
+snap*

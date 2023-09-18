@@ -293,6 +293,7 @@ fn cli_access_server(engine: &str, addr: &str) {
 
     sender.send(()).unwrap();
     handle.join().unwrap();
+    thread::sleep(Duration::from_secs(1));
 
     // Reopen and check value
     let (sender, receiver) = mpsc::sync_channel(0);

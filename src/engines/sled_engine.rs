@@ -1,8 +1,9 @@
-use crate::{KvsEngine, Result};
+use crate::{KvsEngine, Result, KvsError};
 use {sled, sled::Db};
 use std::path::PathBuf;
 
 /// sled implemented kv store
+#[derive(Clone)]
 pub struct SledKvsEngine {
     sled_db: Db,
 }
@@ -33,7 +34,8 @@ impl KvsEngine for SledKvsEngine {
     }
     
     fn remove(&mut self, key: String) -> Result<()> {
-        self.sled_db.remove(key)?;
+        self.sled_db.remove(key)?.ok_or(KvsError::KeyNotFound)?;
+        self.sled_db.flush()?;
         Ok(())
     }
 }

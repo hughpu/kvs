@@ -63,7 +63,7 @@ fn main() -> Result<()> {
 
     let mut cli = Cli::parse();
 
-    info!(root_log, "starting kv server...");
+    info!(root_log, "starting kvs server...");
     if let Some(engine) = current_engine(&root_log)? {
         if cli.engine.is_none() {
             cli.engine = Some(engine.clone());

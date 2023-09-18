@@ -33,8 +33,15 @@ fn main() -> Result<()> {
         }
         Command::Get { key, addr } => {
             let mut kvs_cli = KvsClient::connect(addr)?;
-            let value = kvs_cli.get(key.clone())?.ok_or(KvsError::StringError(String::from("got empty value.")))?;
-            info!(root, "successfully get {value} from {key} in kvs-store proxied via server at {addr}", key=key, value=&value, addr=addr);
+            match kvs_cli.get(key.clone())? {
+                Some(value) => {
+                    println!("{value}");
+                    info!(root, "successfully get {value} from {key} in kvs-store proxied via server at {addr}", key=key, value=&value, addr=addr);
+                },
+                None => {
+                    println!("Key not found for {key}");
+                },
+            };
         }
         Command::Rm { key, addr } => {
             let mut kvs_cli = KvsClient::connect(addr)?;

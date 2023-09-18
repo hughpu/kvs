@@ -24,6 +24,7 @@ pub const DEFAULT_ADDR: &str = "127.0.0.1:4000";
 /// ```rust
 /// # use kvs::{KvStore, Result};
 /// # fn try_main() -> Result<()> {
+/// use kvs::KvsEngine;
 /// use std::env::current_dir;
 /// let mut store = KvStore::open(current_dir()?)?;
 /// store.set("key".to_owned(), "value".to_owned())?;

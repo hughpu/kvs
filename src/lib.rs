@@ -13,3 +13,6 @@ pub mod client;
 
 /// server module kvs-server binary usage
 pub mod server;
+
+/// thread pool trait and implementations
+pub mod thread_pool;

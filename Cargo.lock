@@ -574,6 +574,7 @@ dependencies = [
  "assert_cmd",
  "clap 4.3.10",
  "criterion",
+ "crossbeam-utils",
  "failure",
  "predicates",
  "rand",

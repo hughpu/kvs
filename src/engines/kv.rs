@@ -3,6 +3,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, atomic::{AtomicU64}};
 
 use clap::Subcommand;
 use serde::{Deserialize, Serialize};
@@ -33,18 +34,19 @@ pub const DEFAULT_ADDR: &str = "127.0.0.1:4000";
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Clone)]
 pub struct KvStore {
     // directory for the log and other data.
-    path: PathBuf,
+    path: Arc<PathBuf>,
     // map generation number to the file reader.
-    readers: HashMap<u64, BufReaderWithPos<File>>,
+    readers: Arc<HashMap<u64, BufReaderWithPos<File>>>,
     // writer of the current log.
-    writer: BufWriterWithPos<File>,
-    current_gen: u64,
-    index: BTreeMap<String, CommandPos>,
+    writer: Arc<Mutex<BufWriterWithPos<File>>>,
+    current_gen: Arc<AtomicU64>,
+    index: Arc<Mutex<BTreeMap<String, CommandPos>>>,
     // the number of bytes representing "stale" commands that could be
     // deleted during a compaction.
-    uncompacted: u64,
+    uncompacted: Arc<AtomicU64>,
 }
 
 impl KvStore {

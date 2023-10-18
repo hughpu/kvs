@@ -1,10 +1,14 @@
 use failure::Fail;
-use std::{io, string::FromUtf8Error};
+use slog::KV;
+use std::{io, string::FromUtf8Error, sync::PoisonError, any::type_name};
 use sled;
 
 /// Error type for kvs.
 #[derive(Fail, Debug)]
 pub enum KvsError {
+    /// Poison error.
+    #[fail(display = "{}", _0)]
+    PoisonError(String),
     /// String error.
     #[fail(display = "{}", _0)]
     StringError(String),
@@ -50,6 +54,12 @@ impl From<serde_json::Error> for KvsError {
 impl From<FromUtf8Error> for KvsError {
     fn from(err: FromUtf8Error) -> KvsError {
         KvsError::FromUtf8Error(err)
+    }
+}
+
+impl<T> From<PoisonError<T>> for KvsError {
+    fn from(value: PoisonError<T>) -> Self {
+        KvsError::PoisonError(format!("poison error with type: {}", type_name::<T>()))
     }
 }
 

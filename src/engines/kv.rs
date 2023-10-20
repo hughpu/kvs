@@ -1,8 +1,8 @@
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
-use std::ops::{Range, DerefMut};
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}};
 
@@ -38,7 +38,7 @@ pub const DEFAULT_ADDR: &str = "127.0.0.1:4000";
 /// ```
 pub struct KvStore {
     // directory for the log and other data.
-    path: PathBuf,
+    path: Arc<PathBuf>,
     // kvs reader
     kvs_reader: KvReader,
     // kvs writer
@@ -49,7 +49,7 @@ pub struct KvStore {
 
 struct KvWriter {
     // path
-    path: PathBuf,
+    path: Arc<PathBuf>,
     // writer of the current log.
     writer: BufWriterWithPos<File>,
     current_gen: u64,
@@ -67,7 +67,7 @@ struct KvReader {
     // latest generation
     safe_point: Arc<AtomicU64>,
     // dir path of logs
-    path: PathBuf
+    path: Arc<PathBuf>
 }
 
 impl Clone for KvStore {
@@ -92,8 +92,10 @@ impl Clone for KvReader {
 }
 
 impl KvReader {
-    fn get_reader(&self, cmd_pos: &CommandPos) -> Result<io::Take<&mut BufReaderWithPos<File>>> {
-        let mut readers = self.readers.borrow_mut();
+    fn read_and<F, R>(&self, cmd_pos: &CommandPos, f: F) -> Result<R>
+    where F: FnOnce(io::Take<&mut BufReaderWithPos<File>>) -> Result<R>
+    {
+        let mut readers  = self.readers.borrow_mut();
         if !readers.contains_key(&cmd_pos.gen) {
             let reader = BufReaderWithPos::new(
                 File::open(log_path(&self.path, cmd_pos.gen))?
@@ -103,7 +105,7 @@ impl KvReader {
         let reader = readers.get_mut(&cmd_pos.gen).expect("Cannot find log reader");
         reader.seek(SeekFrom::Start(cmd_pos.pos))?;
         let cmd_reader = reader.take(cmd_pos.len);
-        Ok(cmd_reader)
+        f(cmd_reader)
     }
     
     fn close_stale_readers(&self) {
@@ -133,8 +135,12 @@ impl KvWriter {
         for entry in self.index.iter() {
             let key = entry.key();
             let cmd_pos = entry.value();
-            let mut entry_reader = self.kvs_reader.get_reader(&cmd_pos)?;
-            let len = io::copy(&mut entry_reader, &mut compaction_writer)?;
+
+            // let mut entry_reader = self.kvs_reader.get_reader(&cmd_pos)?;
+            let len = self.kvs_reader.read_and(
+                &cmd_pos,
+                |mut reader| { Ok(io::copy(&mut reader, &mut compaction_writer)?) }
+            )?;
             self.index.insert(key.clone(), (compaction_gen, new_pos..new_pos + len).into());
             new_pos += len;
         }
@@ -163,7 +169,7 @@ impl KvWriter {
         let cmd = Command::set(key, value);
 
         let pos = self.writer.pos;
-        serde_json::to_writer(self.writer, &cmd)?;
+        serde_json::to_writer(&mut self.writer, &cmd)?;
         self.writer.flush()?;
 
         if let Command::Set { key, .. } = cmd {
@@ -184,10 +190,11 @@ impl KvWriter {
     fn remove(&mut self, key: String) -> Result<()> {
         if self.index.contains_key(&key) {
             let cmd = Command::remove(key);
-            serde_json::to_writer(self.writer, &cmd)?;
+            serde_json::to_writer(&mut self.writer, &cmd)?;
             self.writer.flush()?;
             if let Command::Rm { key, .. } = cmd {
-                let old_cmd = self.index.remove(&key).expect("key not found").value();
+                let old_entry = self.index.remove(&key).expect("key not found");
+                let old_cmd = old_entry.value();
                 self.uncompacted += old_cmd.len;
             }
             Ok(())
@@ -210,14 +217,14 @@ impl KvStore {
         fs::create_dir_all(&path)?;
 
         let mut readers = BTreeMap::new();
-        let mut index = SkipMap::new();
+        let index = SkipMap::new();
 
         let gen_list = sorted_gen_list(&path)?;
         let mut uncompacted = 0;
 
         for &gen in &gen_list {
             let mut reader = BufReaderWithPos::new(File::open(log_path(&path, gen))?)?;
-            uncompacted += load(gen, &mut reader, index)?;
+            uncompacted += load(gen, &mut reader, &index)?;
             readers.insert(gen, reader);
         }
 
@@ -228,10 +235,11 @@ impl KvStore {
 
         let safe_point = Arc::new(AtomicU64::new(gen_list[0]));
 
+        let path = Arc::new(path);
         let kvs_reader = KvReader {
             readers: RefCell::new(readers),
             safe_point,
-            path
+            path: path.clone(),
         };
 
         let kvs_writer = Arc::new(
@@ -241,8 +249,8 @@ impl KvStore {
                     current_gen,
                     index: index.clone(),
                     uncompacted,
-                    kvs_reader,
-                    path
+                    kvs_reader: kvs_reader.clone(),
+                    path: path.clone()
                 }
             )
         );
@@ -281,12 +289,16 @@ impl KvsEngine for KvStore {
 
         if let Some(entry) = self.index.get(&key) {
             let cmd_pos = entry.value();
-            let cmd_reader = self.kvs_reader.get_reader(cmd_pos)?;
-            if let Command::Set { value, .. } = serde_json::from_reader(cmd_reader)? {
-                Ok(Some(value))
-            } else {
-                Err(KvsError::UnexpectedCommandType)
-            }
+            self.kvs_reader.read_and(
+                cmd_pos,
+                |cmd_reader| {
+                    if let Command::Set { value, .. } = serde_json::from_reader(cmd_reader)? {
+                        Ok(Some(value))
+                    } else {
+                        Err(KvsError::UnexpectedCommandType)
+                    }
+                }
+            )
         } else {
             Ok(None)
         }
@@ -346,7 +358,7 @@ fn sorted_gen_list(path: &Path) -> Result<Vec<u64>> {
 fn load(
     gen: u64,
     reader: &mut BufReaderWithPos<File>,
-    index: SkipMap<String, CommandPos>,
+    index: &SkipMap<String, CommandPos>,
 ) -> Result<u64> {
     // To make sure we read from the beginning of the file.
     let mut pos = reader.seek(SeekFrom::Start(0))?;

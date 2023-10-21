@@ -589,6 +589,7 @@ dependencies = [
  "crossbeam-skiplist",
  "crossbeam-utils",
  "failure",
+ "num_cpus",
  "panic-control",
  "predicates",
  "rand",

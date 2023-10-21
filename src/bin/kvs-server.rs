@@ -1,8 +1,9 @@
 use clap::{Parser, ValueEnum};
-use kvs::{KvStore, Result, KvsEngine, SledKvsEngine, server::KvsServer, KvsError};
+use kvs::{KvStore, Result, KvsEngine, SledKvsEngine, server::KvsServer, KvsError, thread_pool::*};
 use std::{env::current_dir, net, io::{BufReader, prelude::*}};
 use slog::{Drain, o, info, warn, Logger};
 use slog_term;
+use num_cpus;
 
 
 static ENGINE_FILE: &str = "engine";
@@ -84,10 +85,17 @@ fn main() -> Result<()> {
     );
 
     info!(server_log, "starting server...");
+    let pool = NaiveThreadPool::new(num_cpus::get() as u32)?;
 
     match engine {
-        Engine::Kvs => KvsServer::new(KvStore::open(current_dir()?)?).run(&cli.addr),
-        Engine::Sled => KvsServer::new(SledKvsEngine::open(current_dir()?)?).run(&cli.addr)
+        Engine::Kvs => KvsServer::new(
+            KvStore::open(current_dir()?)?,
+            pool
+        ).run(&cli.addr),
+        Engine::Sled => KvsServer::new(
+            SledKvsEngine::open(current_dir()?)?,
+            pool
+        ).run(&cli.addr)
     }
 }
 

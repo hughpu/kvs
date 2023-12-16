@@ -1,6 +1,6 @@
 use crate::error::Result;
 use std::{thread, sync::{atomic::{AtomicBool, Ordering}, Arc}};
-use crossbeam::channel::{bounded, Sender, Receiver};
+use crossbeam::channel::{bounded, Sender};
 
 /// thread pool trait
 pub trait ThreadPool {
@@ -68,7 +68,9 @@ impl ThreadPool for SharedQueueThreadPool
 }
 
 impl SharedQueueThreadPool {
-    pub fn stop(&self) { let cur_terminated = self.terminated.clone();
+    /// wait current tasks to finish and terminated all hosted threads
+    pub fn stop(&self) {
+        let cur_terminated = self.terminated.clone();
         cur_terminated.store(true, Ordering::SeqCst);
         for _ in 0..self.threads {
             let _ = self.sender.send(
@@ -77,4 +79,3 @@ impl SharedQueueThreadPool {
         }
     }
 }
-

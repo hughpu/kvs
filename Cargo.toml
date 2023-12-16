@@ -18,6 +18,7 @@ num_cpus = "1.14.0"
 
 [dev-dependencies]
 crossbeam-utils = "0.8"
+crossbeam = "0.8"
 assert_cmd = "2.0"
 predicates = "3.0"
 tempfile = "3.6"

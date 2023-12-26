@@ -1,9 +1,5 @@
 use clap::Parser;
-use kvs::{KvStore, KvsEngine, KvsError, client::KvsClient, Result, Command};
-use std::io::{Write, Read};
-use std::net;
-use std::{env::current_dir, net::TcpStream};
-use std::process::exit;
+use kvs::{client::KvsClient, Result, Command};
 use {slog, slog::{Drain, o, info}, slog_term};
 
 

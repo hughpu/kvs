@@ -1,6 +1,6 @@
 use crate::error::Result;
 use std::{thread, sync::{atomic::{AtomicBool, Ordering}, Arc}};
-use crossbeam::channel::{bounded, Sender};
+use crossbeam::channel::{bounded, Sender, Receiver};
 
 /// thread pool trait
 pub trait ThreadPool {
@@ -16,7 +16,7 @@ pub trait ThreadPool {
 pub struct NaiveThreadPool {}
 
 impl ThreadPool for NaiveThreadPool {
-    fn new(threads: u32) -> Result<Self> {
+    fn new(_threads: u32) -> Result<Self> {
         Ok(Self{})
     }
     
@@ -26,6 +26,28 @@ impl ThreadPool for NaiveThreadPool {
 }
 
 type DynFunc = Box<dyn FnOnce() + Send + 'static>;
+
+#[derive(Clone)]
+struct RecoverableReceiver(Receiver<DynFunc>, Arc<AtomicBool>);
+
+fn run_receiver(receiver: RecoverableReceiver) {
+    thread::spawn(move|| {
+        while !receiver.1.load(Ordering::SeqCst) {
+            if let Ok(job) = receiver.0.recv() {
+                job();
+            }
+        }
+    });
+}
+
+impl Drop for RecoverableReceiver {
+    fn drop(&mut self) {
+        if thread::panicking() {
+            run_receiver(self.clone());
+        }
+    }
+}
+
 
 /// the shared queue thread pool
 pub struct SharedQueueThreadPool
@@ -42,16 +64,11 @@ impl ThreadPool for SharedQueueThreadPool
         let terminated = Arc::new(AtomicBool::new(false));
         
         for _ in 0..threads {
-            let cur_terminated = terminated.clone();
-            let cur_receiver = receiver.clone();
-            thread::spawn(move|| {
-                while !cur_terminated.load(Ordering::SeqCst) {
-
-                    if let Ok(job) = cur_receiver.recv() {
-                        job();
-                    }
-                }
-            });
+            let cur_receiver = RecoverableReceiver(
+                receiver.clone(),
+                terminated.clone(),
+            );
+            run_receiver(cur_receiver);
         }
 
         return Ok(

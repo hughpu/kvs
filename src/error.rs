@@ -1,5 +1,4 @@
 use failure::Fail;
-use slog::KV;
 use std::{io, string::FromUtf8Error, sync::PoisonError, any::type_name};
 use sled;
 
@@ -58,7 +57,7 @@ impl From<FromUtf8Error> for KvsError {
 }
 
 impl<T> From<PoisonError<T>> for KvsError {
-    fn from(value: PoisonError<T>) -> Self {
+    fn from(_value: PoisonError<T>) -> Self {
         KvsError::PoisonError(format!("poison error with type: {}", type_name::<T>()))
     }
 }

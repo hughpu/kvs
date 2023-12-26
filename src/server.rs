@@ -3,7 +3,7 @@ use std::{net::{TcpListener, ToSocketAddrs, TcpStream}, io::{BufWriter, Write}};
 use serde_json::Deserializer;
 use slog::{Drain, o, info, error, Logger};
 
-use crate::{KvsEngine, Result, protocols::{Request, GetResponse, SetResponse, RemoveResponse}, KvsError, thread_pool::{ThreadPool, self, NaiveThreadPool}};
+use crate::{KvsEngine, Result, protocols::{Request, GetResponse, SetResponse, RemoveResponse}, thread_pool::ThreadPool};
 
 
 /// kvs server to receive requests from kvs-client

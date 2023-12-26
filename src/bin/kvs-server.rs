@@ -1,6 +1,6 @@
 use clap::{Parser, ValueEnum};
-use kvs::{KvStore, Result, KvsEngine, SledKvsEngine, server::KvsServer, KvsError, thread_pool::*};
-use std::{env::current_dir, net, io::{BufReader, prelude::*}};
+use kvs::{KvStore, Result, server::KvsServer, KvsError, thread_pool::*, SledKvsEngine};
+use std::env::current_dir;
 use slog::{Drain, o, info, warn, Logger};
 use slog_term;
 use num_cpus;

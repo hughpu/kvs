@@ -85,7 +85,7 @@ fn main() -> Result<()> {
     );
 
     info!(server_log, "starting server...");
-    let pool = NaiveThreadPool::new(num_cpus::get() as u32)?;
+    let pool = SharedQueueThreadPool::new(num_cpus::get() as u32)?;
 
     match engine {
         Engine::Kvs => KvsServer::new(

@@ -1,6 +1,7 @@
 use crate::error::Result;
 use std::{thread, sync::{atomic::{AtomicBool, Ordering}, Arc}};
 use crossbeam::channel::{bounded, Sender, Receiver};
+use rayon;
 
 /// thread pool trait
 pub trait ThreadPool {
@@ -96,3 +97,25 @@ impl SharedQueueThreadPool {
         }
     }
 }
+
+/// adapter thread pool for rayon
+pub struct RayonThreadPool {
+    threadpool: rayon::ThreadPool
+}
+
+impl ThreadPool for RayonThreadPool {
+    fn new(threads: u32) -> Result<RayonThreadPool> {
+        let threadpool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads as usize)
+            .build()?;
+        Ok(RayonThreadPool {
+            threadpool
+        })
+    }
+    
+    fn spawn<F>(&self, job: F) where F: FnOnce() + Send + 'static {
+        self.threadpool.spawn(job);
+    }
+}
+
+

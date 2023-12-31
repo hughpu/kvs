@@ -16,6 +16,7 @@ slog-term = "2.9.0"
 crossbeam-skiplist = "0.1"
 num_cpus = "1.14.0"
 crossbeam = "0.8"
+rayon = "1.8"
 
 [dev-dependencies]
 crossbeam-utils = "0.8"

@@ -1,4 +1,5 @@
 use failure::Fail;
+use rayon;
 use std::{io, string::FromUtf8Error, sync::PoisonError, any::type_name};
 use sled;
 
@@ -20,6 +21,9 @@ pub enum KvsError {
     /// sled engine error
     #[fail(display = "{}", _0)]
     Sled(#[cause] sled::Error),
+    /// rayon threadpool builder error
+    #[fail(display = "{}", _0)]
+    ThreadPoolBuildError(#[cause] rayon::ThreadPoolBuildError),
     /// ivec convert to utf8 error
     #[fail(display = "{}", _0)]
     FromUtf8Error(#[cause] FromUtf8Error),
@@ -30,6 +34,7 @@ pub enum KvsError {
     /// It indicated a corrupted log or a program bug.
     #[fail(display = "Unexpected command type")]
     UnexpectedCommandType,
+    
 }
 
 impl From<io::Error> for KvsError {
@@ -59,6 +64,12 @@ impl From<FromUtf8Error> for KvsError {
 impl<T> From<PoisonError<T>> for KvsError {
     fn from(_value: PoisonError<T>) -> Self {
         KvsError::PoisonError(format!("poison error with type: {}", type_name::<T>()))
+    }
+}
+
+impl From<rayon::ThreadPoolBuildError> for KvsError {
+    fn from(err: rayon::ThreadPoolBuildError) -> Self {
+        KvsError::ThreadPoolBuildError(err)
     }
 }
 

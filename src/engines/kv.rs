@@ -233,7 +233,7 @@ impl KvStore {
 
         let index = Arc::new(index);
 
-        let safe_point = Arc::new(AtomicU64::new(gen_list[0]));
+        let safe_point = Arc::new(AtomicU64::new(gen_list.first().unwrap_or(&current_gen).clone()));
 
         let path = Arc::new(path);
         let kvs_reader = KvReader {

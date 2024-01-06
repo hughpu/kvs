@@ -24,7 +24,7 @@ assert_cmd = "2.0"
 predicates = "3.0"
 tempfile = "3.6"
 walkdir = "2.3"
-criterion = "0.3"
+criterion = "0.5.1"
 rand = { version = "0.8.5", features = ["small_rng"] }
 rand_chacha = "0.3.1"
 panic-control = "0.1.4"

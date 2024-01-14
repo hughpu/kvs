@@ -51,6 +51,7 @@ impl Drop for RecoverableReceiver {
 
 
 /// the shared queue thread pool
+#[derive(Clone)]
 pub struct SharedQueueThreadPool
 {
     sender: Sender<DynFunc>,
